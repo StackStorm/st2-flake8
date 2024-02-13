@@ -1,0 +1,125 @@
+name: Test Workflow
+on:
+  pull_request:
+    branches:
+      - "**"
+  push:
+    branches:
+      - "**"
+  workflow_dispatch: {}
+
+jobs:
+  lint:
+    name: Lint Project
+
+    runs-on: "${{ matrix.os }}"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version:
+          - "3.6"
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+        os:
+          - ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        name: Clone repository
+
+      - name: Set up Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements-test.txt
+          pip install pylint
+          pip install flake8
+
+      - name: Lint Project with Pylint
+        run: |
+          pylint -E --rcfile=.pylintrc st2flake8
+
+      - name: Lint Project with Flake8
+        run: |
+          flake8 --config .flake8 st2flake8 --exclude st2flake8/tests/fixtures
+
+  deps_safety_check:
+    name: Check the safety of our dependencies.
+
+    runs-on: "${{ matrix.os }}"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version:
+          - "3.6"
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+        os:
+          - ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        name: Clone repository
+
+      - name: Set up Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install safety
+
+      - name: Check the safety of our dependencies.
+        run: safety check -i 51668 -i 62044
+
+  test:
+    name: "[${{ matrix.os }}] Test Project with Python ${{ matrix.python_version }}"
+
+    runs-on: "${{ matrix.os }}"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version:
+          - "3.6"
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+        os:
+          - ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        name: Clone repository
+
+      - name: Set up Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install tox
+
+      - name: Test Project as defined by tox.ini
+        run: |
+          tox -c tox.ini
+
