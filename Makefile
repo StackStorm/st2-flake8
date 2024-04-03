@@ -1,3 +1,4 @@
+# Copyright 2020-2024 StackStorm contributors.
 # Copyright 2019 Extreme Networks, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PY3 := /usr/bin/python3
-VER := $(shell cat ./st2flake8/__init__.py | grep -Po "__version__ = '\K[^']*")
+PY3 := python3
+SYS_PY3 := $(shell which $(PY3))
+PIP_VERSION = 24.0
+VER := $(shell grep __version__ ./st2flake8/__init__.py | cut -d= -f2 | tr -d '" ')
 
 # Virtual Environment
 VENV_DIR ?= .venv
@@ -25,6 +28,10 @@ TOX_DIR ?= .tox
 PKGDISTDIR    = dist
 PKGBUILDDIR   = build
 
+
+.PHONY: all
+all: tox
+
 .PHONY: clean
 clean:
 	rm -rf $(VENV_DIR)
@@ -34,19 +41,38 @@ clean:
 	rm -rf *.egg-info
 	rm -f coverage.xml
 
-.PHONY: venv
-venv:
-	test -d $(VENV_DIR) || virtualenv --no-site-packages $(VENV_DIR)
+.PHONY: tox
+tox: setup_virtualenv check_virtualenv
+	$(VENV_DIR)/bin/tox
 
-.PHONY: reqs
-reqs: venv
-	$(VENV_DIR)/bin/pip install --upgrade "pip>=19.0,<20.0"
+.PHONY: tests
+tests: check_virtualenv
+	$(VENV_DIR)/bin/pytest
+
+.PHONY: create_virtualenv
+create_virtualenv:
+	test -d $(VENV_DIR) || $(SYS_PY3) -m venv $(VENV_DIR)
+
+.PHONY: install_requirements
+install_requirements: create_virtualenv
+	$(VENV_DIR)/bin/pip install --upgrade pip==$(PIP_VERSION)
 	$(VENV_DIR)/bin/pip install -r requirements.txt
 	$(VENV_DIR)/bin/pip install -r requirements-test.txt
-	$(VENV_DIR)/bin/python setup.py develop
 
-.PHONY: package
-package:
+.PHONY: setup_virtualenv
+setup_virtualenv: install_requirements
+
+.PHONY: check_virtualenv
+check_virtualenv:
+	test -d $(VENV_DIR) || echo "Missing virtual environment, try running make setup_virtualenv."
+	test -d $(VENV_DIR) || exit 1
+
+.PHONY: build_application
+build_application: check_virtualenv
+	$(VENV_DIR)/bin/$(PY3) setup.py develop
+
+.PHONY: build_package
+build_package: check_virtualenv
 	rm -rf $(PKGDISTDIR)
 	rm -rf $(PKGBUILDDIR)
-	$(PY3) setup.py sdist bdist_wheel
+	$(VENV_DIR)/bin/$(PY3) setup.py sdist bdist_wheel
