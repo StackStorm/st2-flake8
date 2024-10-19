@@ -46,7 +46,7 @@ def get_requirements():
 
 
 setup(
-    name="st2-flake8",
+    name="st2flake8",
     version=get_version_string(),
     author="StackStorm",
     author_email="info@stackstorm.com",
